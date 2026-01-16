@@ -1,0 +1,23 @@
+# Dependencias principales del HTTP Proxy Server
+# =============================================
+
+# Servidor web y API
+fastapi>=0.104.1
+uvicorn[standard]>=0.24.0
+httptools>=0.6.0
+
+# Cliente HTTP y manejo de sesiones
+requests>=2.31.0
+urllib3>=2.0.7
+
+# Validación de datos
+pydantic>=2.5.0
+email-validator>=2.3.0
+dnspython>=2.8.0
+
+# Logging y utilidades
+typing-extensions>=4.8.0
+
+# Dependencias para compilación con PyInstaller
+# (se instalarán automáticamente cuando sea necesario)
+pyinstaller>=6.0.0
