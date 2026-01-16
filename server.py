@@ -481,6 +481,105 @@ def health() -> JSONResponse:
         )
 
 @app.post(
+    "/set-headers",
+    summary="Set Custom Session Headers",
+    description="""Sets custom headers for the global HTTP session.
+
+                   This endpoint allows you to define additional headers that
+                   will be included in all subsequent requests made through
+                   the proxy session.
+
+                   **Response codes:**
+                   - 200: Headers set successfully
+                   - 400: Invalid header format
+                """,
+    response_model=Dict[str, str],
+    responses={
+        200: {
+            "description": "Headers set successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "OK",
+                        "detail": "Custom headers set successfully"
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid header format",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Headers must be a dictionary of string key-value pairs"
+                    }
+                }
+            }
+        }
+    },
+)
+def set_headers(payload: Dict[str, str]) -> JSONResponse:
+    """
+    Set custom headers for the global HTTP session.
+
+    This endpoint is useful for configuring additional headers that
+    should be included in all requests made through the proxy session.
+
+    Parameters
+    ----------
+    payload : Dict[str, str]
+        Dictionary containing header names and values to set.
+
+    Returns
+    -------
+    JSONResponse
+        JSON response confirming that headers have been set.
+
+    Raises
+    ------
+    HTTPException
+        If the input data is invalid (status code 400).
+
+    Examples
+    --------
+    >>> # Example payload to set custom headers
+    >>> payload = {
+    ...     "X-Custom-Header": "CustomValue",
+    ...     "Authorization": "Bearer token123"
+    ... }
+
+    Notes
+    -----
+    - Headers set here will persist for all future requests in the session.
+    - Existing headers will be updated or added as specified.
+    """
+
+    logger.info("Setting custom session headers")
+
+    if not isinstance(payload, dict) or not all(
+        isinstance(k, str) and isinstance(v, str) for k, v in payload.items()
+    ):
+        error_msg = "Headers must be a dictionary of string key-value pairs"
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=400,
+            content={"detail": error_msg}
+        )
+
+    # Reset and update session headers
+    session.headers.clear()
+    session.headers.update(payload)
+    logger.info(f"Custom headers set: {list(payload.keys())}")
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "OK",
+            "detail": "Custom headers set successfully"
+        }
+    )
+
+@app.post(
     "/login",
     summary="Authentication and Session Management",
     description="""Performs authentication against an external system and maintains an active session.

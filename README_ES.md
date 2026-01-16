@@ -66,6 +66,18 @@ Content-Type: application/json
 }
 ```
 
+### 🛠️ Set Headers / Configurar Headers de Sesión
+```http
+POST http://localhost:5003/set-headers
+Content-Type: application/json
+
+{
+  "X-Custom-Header": "ValorPersonalizado",
+  "Authorization": "Bearer token123"
+}
+```
+> Permite definir headers personalizados que se incluirán en todas las peticiones futuras del proxy. Útil para autenticaciones o configuraciones corporativas.
+
 ## 📚 Documentación Interactiva
 
 Una vez que el servidor esté ejecutándose, accede a:
@@ -181,6 +193,16 @@ curl -X POST "http://localhost:5003/forward" \
 ### 3. Logout (Opcional)
 ```bash
 curl -X POST "http://localhost:5003/logout"
+```
+
+### 0. Configurar Headers Personalizados (opcional)
+```bash
+curl -X POST "http://localhost:5003/set-headers" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "X-Custom-Header": "ValorPersonalizado",
+    "Authorization": "Bearer token123"
+  }'
 ```
 
 ## 🚨 Solución de Problemas

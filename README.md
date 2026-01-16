@@ -66,6 +66,18 @@ Content-Type: application/json
 }
 ```
 
+### 🛠️ Set Headers / Set Session Headers
+```http
+POST http://localhost:5003/set-headers
+Content-Type: application/json
+
+{
+  "X-Custom-Header": "CustomValue",
+  "Authorization": "Bearer token123"
+}
+```
+> Allows you to define custom headers that will be included in all future proxy requests. Useful for authentication or corporate header requirements.
+
 ## 📚 Interactive Documentation
 
 Once the server is running, access:
@@ -175,6 +187,16 @@ curl -X POST "http://localhost:5003/forward" \
   -d '{
     "url": "https://sistema.empresa.com/api/datos",
     "method": "GET"
+  }'
+```
+
+### 0. Set Custom Headers (optional)
+```bash
+curl -X POST "http://localhost:5003/set-headers" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "X-Custom-Header": "CustomValue",
+    "Authorization": "Bearer token123"
   }'
 ```
 
