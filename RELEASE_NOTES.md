@@ -28,14 +28,18 @@ A **standalone Windows executable** that provides an HTTP proxy server with pers
 
 ### 🌐 API Endpoints
 
-| Endpoint        | Method | Purpose                                         |
-|-----------------|--------|------------------------------------------------|
-| `/health`       | GET    | Service and connectivity health check           |
-| `/login`        | POST   | Authentication and session initialization       |
-| `/logout`       | POST   | Session termination and cleanup                 |
-| `/forward`      | POST   | HTTP request proxy with session persistence     |
-| `/set-headers`  | POST   | Set custom headers for all session requests     |
-| `/docs`         | GET    | Interactive Swagger API documentation           |
+
+| Endpoint              | Method | Purpose                                         |
+|-----------------------|--------|------------------------------------------------|
+| `/health`             | GET    | Service and connectivity health check           |
+| `/login`              | POST   | Authentication and session initialization       |
+| `/logout`             | POST   | Session termination and cleanup                 |
+| `/forward`            | POST   | HTTP request proxy with session persistence     |
+| `/set-headers`        | POST   | Set custom headers for all session requests     |
+| `/get-headers`        | POST   | Get all current session headers                 |
+| `/get-cookies`        | POST   | Get all current session cookies                 |
+| `/get-session-info`   | POST   | Get detailed session information                |
+| `/docs`               | GET    | Interactive Swagger API documentation           |
 
 ### 🔧 Configuration Options
 
@@ -88,16 +92,22 @@ This is a complete rewrite with:
 
 ### 🆕 New: Set Custom Headers
 
-- **Endpoint:** `/set-headers`
-- **Purpose:** Define custom HTTP headers for all future requests in the session.
-- **Example:**
-  ```http
-  POST /set-headers
-  {
-    "Authorization": "Bearer token123",
-    "X-Custom-Header": "CustomValue"
-  }
-  ```
-- **Use Case:** Add authentication tokens or corporate headers globally.
 
-**Perfect for**: Enterprise integration, API bridging, authenticated web scraping, development proxying, and legacy system modernization.
+---
+#### 🆕 New method: `/set-headers`
+
+This endpoint allows you to set **custom HTTP headers** that will be automatically included in all future session requests. It's ideal for adding authentication tokens, corporate headers, or any information that should persist in proxied requests.
+
+**Usage example:**
+```http
+POST /set-headers
+{
+  "Authorization": "Bearer token123",
+  "X-Custom-Header": "CustomValue"
+}
+```
+
+**Benefits:**
+- Centralizes authentication and header management.
+- Facilitates integration with enterprise APIs.
+- Allows header changes without restarting the session.

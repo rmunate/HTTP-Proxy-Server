@@ -303,15 +303,6 @@ session = requests.Session()
 # Configure the session for corporate environments
 # Disable SSL verification for corporate proxies
 session.verify = False
-session.headers.update({
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language": "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
-    "Accept-Encoding": "gzip, deflate",
-    "DNT": "1",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-})
 
 # Log initial configuration
 logger.info("HTTPServerProxy application initialized successfully")
@@ -576,6 +567,208 @@ def set_headers(payload: Dict[str, str]) -> JSONResponse:
         content={
             "status": "OK",
             "detail": "Custom headers set successfully"
+        }
+    )
+
+@app.post(
+    "get-headers",
+    summary="Get Current Session Headers",
+    description="""Retrieves the current headers set in the global HTTP session.
+
+                   This endpoint allows you to view all headers that are
+                   currently configured for the session, which will be
+                   included in all subsequent requests.
+
+                   **Response codes:**
+                   - 200: Headers retrieved successfully
+                """,
+    response_model=Dict[str, Any],
+    responses={
+        200: {
+            "description": "Headers retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "OK",
+                        "headers": {
+                            "User-Agent": "CustomAgent/1.0",
+                            "Authorization": "Bearer token123"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    tags=["Session"]
+)
+def get_headers() -> JSONResponse:
+    """
+    Retrieve the current headers set in the global HTTP session.
+
+    This endpoint is useful for inspecting the headers that will be
+    included in all requests made through the proxy session.
+
+    Returns
+    -------
+    JSONResponse
+        JSON response containing the current session headers.
+
+    Examples
+    --------
+    >>> # Successful response with current headers
+    >>> {
+    ...     "status": "OK",
+    ...     "headers": {
+    ...         "User-Agent": "CustomAgent/1.0",
+    ...         "Authorization": "Bearer token123"
+    ...     }
+    ... }
+    """
+
+    logger.info("Retrieving current session headers")
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "OK",
+            "headers": dict(session.headers)
+        }
+    )
+
+@app.post(
+    "get-cookies",
+    summary="Get Current Session Cookies",
+    description="""Retrieves the current cookies stored in the global HTTP session.
+
+                   This endpoint allows you to view all cookies that are
+                   currently stored in the session, which will be
+                   included in all subsequent requests.
+
+                   **Response codes:**
+                   - 200: Cookies retrieved successfully
+                """,
+    response_model=Dict[str, Any],
+    responses={
+        200: {
+            "description": "Cookies retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "OK",
+                        "cookies": {
+                            "sessionid": "abc123",
+                            "auth_token": "token456"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    tags=["Session"]
+)
+def get_cookies() -> JSONResponse:
+    """
+    Retrieve the current cookies stored in the global HTTP session.
+
+    This endpoint is useful for inspecting the cookies that will be
+    included in all requests made through the proxy session.
+
+    Returns
+    -------
+    JSONResponse
+        JSON response containing the current session cookies.
+
+    Examples
+    --------
+    >>> # Successful response with current cookies
+    >>> {
+    ...     "status": "OK",
+    ...     "cookies": {
+    ...         "sessionid": "abc123",
+    ...         "auth_token": "token456"
+    ...     }
+    ... }
+    """
+
+    logger.info("Retrieving current session cookies")
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "OK",
+            "cookies": session.cookies.get_dict()
+        }
+    )
+
+@app.post(
+    "get-session-info",
+    summary="Get Session Information",
+    description="""Retrieves detailed information about the current HTTP session.
+
+                   This endpoint provides insights into the session state,
+                   including cookies, headers, and other relevant metadata.
+
+                   **Response codes:**
+                   - 200: Session information retrieved successfully
+                """,
+    response_model=Dict[str, Any],
+    responses={
+        200: {
+            "description": "Session information retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "OK",
+                        "session_info": {
+                            "cookies": {"sessionid": "abc123"},
+                            "headers": {"User-Agent": "CustomAgent/1.0"},
+                            "verify_ssl": False
+                        }
+                    }
+                }
+            }
+        }
+    },
+    tags=["Session"]
+)
+def get_session_info() -> JSONResponse:
+    """
+    Retrieve detailed information about the current HTTP session.
+
+    This endpoint is useful for inspecting the overall state of the
+    session, including cookies, headers, and configuration.
+
+    Returns
+    -------
+    JSONResponse
+        JSON response containing detailed session information.
+
+    Examples
+    --------
+    >>> # Successful response with session information
+    >>> {
+    ...     "status": "OK",
+    ...     "session_info": {
+    ...         "cookies": {"sessionid": "abc123"},
+    ...         "headers": {"User-Agent": "CustomAgent/1.0"},
+    ...         "verify_ssl": false
+    ...     }
+    ... }
+    """
+
+    logger.info("Retrieving detailed session information")
+
+    session_info = {
+        "cookies": session.cookies.get_dict(),
+        "headers": dict(session.headers),
+        "verify_ssl": session.verify,
+    }
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "OK",
+            "session_info": session_info
         }
     )
 

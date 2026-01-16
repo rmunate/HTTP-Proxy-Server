@@ -24,6 +24,7 @@ HttpProxyServer.exe
 
 ## 🌐 Endpoints Disponibles
 
+
 ### 📊 Health Check
 ```http
 GET http://localhost:5003/health
@@ -77,6 +78,43 @@ Content-Type: application/json
 }
 ```
 > Permite definir headers personalizados que se incluirán en todas las peticiones futuras del proxy. Útil para autenticaciones o configuraciones corporativas.
+
+### 🗂️ Obtener Headers de Sesión
+```http
+POST http://localhost:5003/get-headers
+```
+Devuelve todos los headers actualmente configurados en la sesión HTTP del proxy.
+
+### 🍪 Obtener Cookies de Sesión
+```http
+POST http://localhost:5003/get-cookies
+```
+Devuelve todas las cookies almacenadas en la sesión actual del proxy.
+
+### 📋 Información Detallada de la Sesión
+```http
+POST http://localhost:5003/get-session-info
+```
+Devuelve información completa sobre la sesión HTTP actual, incluyendo headers, cookies y configuración de SSL.
+
+---
+#### 🆕 Nuevo método: `/set-headers`
+
+Este endpoint permite establecer **headers HTTP personalizados** que serán incluidos automáticamente en todas las solicitudes futuras de la sesión. Es ideal para agregar tokens de autenticación, cabeceras corporativas o cualquier información que deba persistir en las peticiones proxificadas.
+
+**Ejemplo de uso:**
+```http
+POST /set-headers
+{
+  "Authorization": "Bearer token123",
+  "X-Custom-Header": "ValorPersonalizado"
+}
+```
+
+**Ventajas:**
+- Centraliza la gestión de autenticación y cabeceras.
+- Facilita la integración con APIs empresariales.
+- Permite modificar cabeceras sin reiniciar la sesión.
 
 ## 📚 Documentación Interactiva
 

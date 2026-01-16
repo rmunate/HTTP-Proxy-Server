@@ -24,6 +24,7 @@ HttpProxyServer.exe
 
 ## 🌐 Available Endpoints
 
+
 ### 📊 Health Check
 ```http
 GET http://localhost:5003/health
@@ -77,6 +78,43 @@ Content-Type: application/json
 }
 ```
 > Allows you to define custom headers that will be included in all future proxy requests. Useful for authentication or corporate header requirements.
+
+### 🗂️ Get Session Headers
+```http
+POST http://localhost:5003/get-headers
+```
+Returns all headers currently configured in the proxy HTTP session.
+
+### 🍪 Get Session Cookies
+```http
+POST http://localhost:5003/get-cookies
+```
+Returns all cookies stored in the current proxy session.
+
+### 📋 Get Detailed Session Info
+```http
+POST http://localhost:5003/get-session-info
+```
+Returns complete information about the current HTTP session, including headers, cookies, and SSL configuration.
+
+---
+#### 🆕 New method: `/set-headers`
+
+This endpoint allows you to set **custom HTTP headers** that will be automatically included in all future session requests. It's ideal for adding authentication tokens, corporate headers, or any information that should persist in proxied requests.
+
+**Usage example:**
+```http
+POST /set-headers
+{
+  "Authorization": "Bearer token123",
+  "X-Custom-Header": "CustomValue"
+}
+```
+
+**Benefits:**
+- Centralizes authentication and header management.
+- Facilitates integration with enterprise APIs.
+- Allows header changes without restarting the session.
 
 ## 📚 Interactive Documentation
 
