@@ -571,7 +571,7 @@ def set_headers(payload: Dict[str, str]) -> JSONResponse:
     )
 
 @app.post(
-    "get-headers",
+    "/get-headers",
     summary="Get Current Session Headers",
     description="""Retrieves the current headers set in the global HTTP session.
 
@@ -636,7 +636,7 @@ def get_headers() -> JSONResponse:
     )
 
 @app.post(
-    "get-cookies",
+    "/get-cookies",
     summary="Get Current Session Cookies",
     description="""Retrieves the current cookies stored in the global HTTP session.
 
@@ -701,7 +701,7 @@ def get_cookies() -> JSONResponse:
     )
 
 @app.post(
-    "get-session-info",
+    "/get-session-info",
     summary="Get Session Information",
     description="""Retrieves detailed information about the current HTTP session.
 
