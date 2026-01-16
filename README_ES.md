@@ -47,7 +47,12 @@ Content-Type: application/json
 }
 ```
 
-### 🔄 Proxy / Reenvío de Peticiones
+### � Logout / Terminación de Sesión
+```http
+POST http://localhost:5003/logout
+```
+
+### �🔄 Proxy / Reenvío de Peticiones
 ```http
 POST http://localhost:5003/forward
 Content-Type: application/json
@@ -171,6 +176,11 @@ curl -X POST "http://localhost:5003/forward" \
     "url": "https://sistema.empresa.com/api/datos",
     "method": "GET"
   }'
+```
+
+### 3. Logout (Opcional)
+```bash
+curl -X POST "http://localhost:5003/logout"
 ```
 
 ## 🚨 Solución de Problemas
