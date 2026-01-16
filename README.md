@@ -1,35 +1,35 @@
-# HTTP Proxy Server - Ejecutable para Windows
+# HTTP Proxy Server - Windows Executable
 
-## 📋 Descripción
+## 📋 Description
 
-Este proyecto contiene un servidor HTTP proxy compilado como ejecutable para Windows que funciona completamente en segundo plano sin mostrar consola.
+This project provides an HTTP proxy server compiled as a Windows executable that runs completely in the background with no visible console.
 
-## ✨ Características
+## ✨ Features
 
-- ✅ **Ejecutable independiente**: No requiere Python instalado
-- ✅ **Sin consola visible**: Funciona como servicio en segundo plano
-- ✅ **Sesiones persistentes**: Mantiene cookies y autenticación automáticamente
-- ✅ **API REST completa**: Endpoints para login, proxy y health check
-- ✅ **Documentación integrada**: Swagger UI disponible en `/docs`
-- ✅ **Logging detallado**: Logs automáticos en archivo `.log`
-- ✅ **Tamaño optimizado**: Solo 11.4 MB con todas las dependencias
+- ✅ **Standalone executable**: No Python installation required
+- ✅ **No visible console**: Runs as a background service
+- ✅ **Persistent sessions**: Automatically maintains cookies and authentication
+- ✅ **Full REST API**: Endpoints for login, proxy, and health check
+- ✅ **Integrated documentation**: Swagger UI available at `/docs`
+- ✅ **Detailed logging**: Automatic logs in `.log` file
+- ✅ **Optimized size**: Only 11.4 MB including all dependencies
 
-## 🚀 Uso Rápido
+## 🚀 Quick Start
 
-### Opción 1: Ejecutar directamente
+### Option 1: Run directly
 ```bash
-# Ejecutar el servidor (sin consola)
+# Run the server (no console)
 HttpProxyServer.exe
 ```
 
-## 🌐 Endpoints Disponibles
+## 🌐 Available Endpoints
 
 ### 📊 Health Check
 ```http
 GET http://localhost:5003/health
 ```
 
-### 🔐 Login / Autenticación
+### 🔐 Login / Authentication
 ```http
 POST http://localhost:5003/login
 Content-Type: application/json
@@ -38,8 +38,8 @@ Content-Type: application/json
   "url": "https://sistema.empresa.com/login",
   "method": "POST",
   "data": {
-    "username": "usuario",
-    "password": "contraseña"
+    "username": "user",
+    "password": "password"
   },
   "headers": {
     "Content-Type": "application/x-www-form-urlencoded"
@@ -47,7 +47,7 @@ Content-Type: application/json
 }
 ```
 
-### 🔄 Proxy / Reenvío de Peticiones
+### 🔄 Proxy / Request Forwarding
 ```http
 POST http://localhost:5003/forward
 Content-Type: application/json
@@ -61,38 +61,38 @@ Content-Type: application/json
 }
 ```
 
-## 📚 Documentación Interactiva
+## 📚 Interactive Documentation
 
-Una vez que el servidor esté ejecutándose, accede a:
+Once the server is running, access:
 
 - **Swagger UI**: http://localhost:5003/docs
 - **ReDoc**: http://localhost:5003/redoc
 - **Health Check**: http://localhost:5003/health
 
-## 🔧 Configuración Avanzada
+## 🔧 Advanced Configuration
 
-### Variables de Entorno
+### Environment Variables
 
-Puedes configurar el servidor usando variables de entorno:
+You can configure the server using environment variables:
 
 ```bash
-# Configurar host y puerto
+# Set host and port
 set SERVER_HOST=0.0.0.0
 set SERVER_PORT=8080
 
-# Configurar nivel de logging
+# Set logging level
 set LOG_LEVEL=debug
 
-# Habilitar logs de acceso HTTP
+# Enable HTTP access logs
 set ACCESS_LOG=true
 
-# Ejecutar servidor
+# Run server
 HttpProxyServer.exe
 ```
 
-### Archivo de Configuración
+### Configuration File
 
-Crear archivo `.env` en la misma carpeta que el ejecutable:
+Create a `.env` file in the same folder as the executable:
 
 ```env
 SERVER_HOST=0.0.0.0
@@ -103,32 +103,32 @@ RELOAD=false
 WORKERS=1
 ```
 
-## 📝 Logs y Debugging
+## 📝 Logs and Debugging
 
-### Ubicación de Logs
-- **Archivo de log**: `HttpProxyServer.log` (misma carpeta que el .exe)
+### Log Location
+- **Log file**: `HttpProxyServer.log` (same folder as the .exe)
 
-### Niveles de Log
-- `debug`: Información muy detallada
-- `info`: Información general (predeterminado)
-- `warning`: Solo advertencias y errores
-- `error`: Solo errores
+### Log Levels
+- `debug`: Very detailed information
+- `info`: General information (default)
+- `warning`: Only warnings and errors
+- `error`: Errors only
 
-### Ejemplo de Log
+### Log Example
 ```
-2026-01-15 20:49:00,123 [INFO] __main__ - Aplicación FastAPI inicializada correctamente
-2026-01-15 20:49:00,124 [INFO] __main__ - Sesión HTTP configurada con User-Agent: Mozilla/5.0...
-2026-01-15 20:49:01,456 [INFO] __main__ - Iniciando verificación de salud del servicio
-2026-01-15 20:49:01,789 [INFO] __main__ - Verificación de salud exitosa - Internet disponible
+2026-01-15 20:49:00,123 [INFO] __main__ - FastAPI application initialized successfully
+2026-01-15 20:49:00,124 [INFO] __main__ - HTTP session configured with User-Agent: Mozilla/5.0...
+2026-01-15 20:49:01,456 [INFO] __main__ - Starting service health check
+2026-01-15 20:49:01,789 [INFO] __main__ - Health check successful - Internet available
 ```
 
-### Detener el Servidor
-1. **Administrador de Tareas**:
+### Stopping the Server
+1. **Task Manager**:
    - `Ctrl + Shift + Esc`
-   - Buscar "HttpProxyServer.exe"
-   - Terminar proceso
+   - Find "HttpProxyServer.exe"
+   - End process
 
-2. **Línea de comandos**:
+2. **Command line**:
    ```bash
    taskkill /f /im HttpProxyServer.exe
    ```
@@ -138,18 +138,18 @@ WORKERS=1
    Get-Process -Name "HttpProxyServer" | Stop-Process -Force
    ```
 
-### Verificar si está Ejecutándose
+### Check if Running
 ```bash
-# Verificar proceso
+# Check process
 tasklist | findstr HttpProxyServer
 
-# Verificar conectividad
+# Check connectivity
 curl http://localhost:5003/health
 ```
 
-## 🔄 Workflow Típico de Uso
+## 🔄 Typical Workflow
 
-### 1. Autenticación
+### 1. Authentication
 ```bash
 curl -X POST "http://localhost:5003/login" \
   -H "Content-Type: application/json" \
@@ -157,13 +157,13 @@ curl -X POST "http://localhost:5003/login" \
     "url": "https://sistema.empresa.com/login",
     "method": "POST",
     "data": {
-      "username": "mi_usuario",
-      "password": "mi_contraseña"
+      "username": "my_user",
+      "password": "my_password"
     }
   }'
 ```
 
-### 2. Realizar Peticiones Autenticadas
+### 2. Make Authenticated Requests
 ```bash
 curl -X POST "http://localhost:5003/forward" \
   -H "Content-Type: application/json" \
@@ -173,75 +173,75 @@ curl -X POST "http://localhost:5003/forward" \
   }'
 ```
 
-## 🚨 Solución de Problemas
+## 🚨 Troubleshooting
 
-### Puerto Ocupado
+### Port Already in Use
 ```
-Error del sistema al iniciar servidor: [WinError 10048]
-Solo se permite el uso de una dirección (protocolo/dirección de red/puerto) por cada socket
-```
-
-**Solución:**
-1. Cambiar el puerto: `set SERVER_PORT=8080`
-2. O terminar proceso existente: `taskkill /f /im HttpProxyServer.exe`
-
-### Error de Permisos
-```
-Error del sistema al iniciar servidor: [WinError 5] Acceso denegado
+System error when starting server: [WinError 10048]
+Only one usage of each socket address (protocol/network address/port) is normally permitted
 ```
 
-**Solución:**
-1. Ejecutar como Administrador
-2. O usar puerto superior a 1024
+**Solution:**
+1. Change the port: `set SERVER_PORT=8080`
+2. Or terminate the existing process: `taskkill /f /im HttpProxyServer.exe`
 
-### Sin Conectividad a Internet
+### Permission Error
+```
+System error when starting server: [WinError 5] Access is denied
+```
+
+**Solution:**
+1. Run as Administrator
+2. Or use a port above 1024
+
+### No Internet Connectivity
 ```
 {
   "status": "Service Unavailable",
   "internet": false,
-  "detail": "Timeout al conectar con google.com"
+  "detail": "Timeout connecting to google.com"
 }
 ```
 
-**Solución:**
-1. Verificar conexión a internet
-2. Verificar configuración de proxy corporativo
-3. Verificar firewall
+**Solution:**
+1. Check your internet connection
+2. Check corporate proxy configuration
+3. Check firewall
 
-## 🔐 Seguridad
+## 🔐 Security
 
-- ✅ **SSL/TLS**: Soporte completo para HTTPS
-- ✅ **Validación de entrada**: Pydantic V2 para validación robusta
-- ✅ **Logging de auditoría**: Registro completo de todas las operaciones
-- ✅ **Headers de seguridad**: User-Agent y headers corporativos
-- ✅ **Timeouts**: Configurables para prevenir ataques de DoS
+- ✅ **SSL/TLS**: Full HTTPS support
+- ✅ **Input validation**: Robust validation with Pydantic V2
+- ✅ **Audit logging**: Complete record of all operations
+- ✅ **Security headers**: User-Agent and corporate headers
+- ✅ **Timeouts**: Configurable to prevent DoS attacks
 
-## 📞 Soporte
+## 📞 Support
 
-Para problemas o preguntas:
-1. Revisar los logs en `HttpProxyServer.log`
-2. Verificar la documentación en `/docs`
-3. Contactar al desarrollador: Raul Mauricio Uñate Castro
+For issues or questions:
+1. Check the logs in `HttpProxyServer.log`
+2. Review the documentation at `/docs`
+3. Contact the developer: Raul Mauricio Uñate Castro
 
-## 📝 Desarrollar Nuevas Caracteristicas
+## 📝 Developing New Features
 
-1. Clonar el repositorio
+1. Clone the repository
 ```bash
 git clone .....
 cd http-proxy-server
 ```
 
-2. Crear entorno virtual e instalar dependencias
+2. Create a virtual environment and install dependencies
 ```bash
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-3. Modificar el código en `server.py`
+3. Modify the code in `server.py`
 
 ---
 
-**Versión**: 2.0.0
-**Fecha**: 15 de Enero de 2026
-**Compatible con**: Windows 10/11, Server 2016+
+**Version**: 2.0.0  
+**Date**: January 15, 2026  
+**Compatible with**: Windows 10/11, Server 2016+
