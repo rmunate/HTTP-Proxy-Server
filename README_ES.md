@@ -91,11 +91,29 @@ POST http://localhost:5003/get-cookies
 ```
 Devuelve todas las cookies almacenadas en la sesión actual del proxy.
 
-### 📋 Información Detallada de la Sesión
+
+### 📥 Descarga de Archivos
 ```http
-POST http://localhost:5003/get-session-info
+POST http://localhost:5003/dowwnload
+Content-Type: application/json
+
+{
+  "url": "https://files.company.com/download/file.zip",
+  "method": "GET",
+  "headers": {"Accept": "application/octet-stream"}
+}
 ```
-Devuelve información completa sobre la sesión HTTP actual, incluyendo headers, cookies y configuración de SSL.
+Devuelve el archivo solicitado como descarga directa (flujo binario). Usa este endpoint para descargar documentos, imágenes o cualquier tipo de archivo manteniendo la sesión y autenticación.
+
+**Ejemplo usando curl:**
+```bash
+curl -X POST "http://localhost:5003/dowwnload" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://files.company.com/download/file.zip",
+    "method": "GET"
+  }' --output archivo.zip
+```
 
 ---
 #### 🆕 Nuevo método: `/set-headers`
@@ -202,9 +220,10 @@ tasklist | findstr HttpProxyServer
 curl http://localhost:5003/health
 ```
 
-## 🔄 Workflow Típico de Uso
 
-### 1. Autenticación
+### 🌀 Workflow Típico de Uso
+
+#### 1. Autenticación
 ```bash
 curl -X POST "http://localhost:5003/login" \
   -H "Content-Type: application/json" \
@@ -218,7 +237,7 @@ curl -X POST "http://localhost:5003/login" \
   }'
 ```
 
-### 2. Realizar Peticiones Autenticadas
+#### 2. Realizar Peticiones Autenticadas
 ```bash
 curl -X POST "http://localhost:5003/forward" \
   -H "Content-Type: application/json" \
@@ -228,12 +247,17 @@ curl -X POST "http://localhost:5003/forward" \
   }'
 ```
 
-### 3. Logout (Opcional)
+#### 3. Descargar Archivos (NUEVO)
 ```bash
-curl -X POST "http://localhost:5003/logout"
+curl -X POST "http://localhost:5003/dowwnload" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://files.company.com/download/file.zip",
+    "method": "GET"
+  }' --output archivo.zip
 ```
 
-### 0. Configurar Headers Personalizados (opcional)
+#### 0. Configurar Headers Personalizados (opcional)
 ```bash
 curl -X POST "http://localhost:5003/set-headers" \
   -H "Content-Type: application/json" \
@@ -241,6 +265,11 @@ curl -X POST "http://localhost:5003/set-headers" \
     "X-Custom-Header": "ValorPersonalizado",
     "Authorization": "Bearer token123"
   }'
+```
+
+#### 4. Logout (Opcional)
+```bash
+curl -X POST "http://localhost:5003/logout"
 ```
 
 ## 🚨 Solución de Problemas

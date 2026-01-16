@@ -33,7 +33,7 @@ import urllib3
 import uvicorn
 import requests
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
@@ -118,7 +118,7 @@ class HTTPRequestPayload(BaseModel):
     headers: dict[str, str] | None = Field(
         default=None, description="Additional HTTP headers"
     )
-    cookies: dict[str, str] | None = Field(
+    cookies: dict[str, dict] | None = Field(
         default=None, description="Cookies to send with the request"
     )
     timeout: int = Field(
@@ -696,7 +696,15 @@ def get_cookies() -> JSONResponse:
         status_code=200,
         content={
             "status": "OK",
-            "cookies": session.cookies.get_dict()
+            "cookies": [
+                {
+                    "name": c.name,
+                    "value": c.value,
+                    "domain": c.domain,
+                    "path": c.path
+                }
+                for c in session.cookies
+            ]
         }
     )
 
@@ -759,7 +767,15 @@ def get_session_info() -> JSONResponse:
     logger.info("Retrieving detailed session information")
 
     session_info = {
-        "cookies": session.cookies.get_dict(),
+        "cookies": [
+            {
+                "name": c.name,
+                "value": c.value,
+                "domain": c.domain,
+                "path": c.path
+            }
+            for c in session.cookies
+        ],
         "headers": dict(session.headers),
         "verify_ssl": session.verify,
     }
@@ -933,7 +949,15 @@ def login(payload: LoginPayload) -> JSONResponse:
             "status": response.reason or "OK",
             "status_code": response.status_code,
             "headers": dict(response.headers),
-            "cookies": session.cookies.get_dict(),  # Use session cookies
+            "cookies": [
+                {
+                    "name": c.name,
+                    "value": c.value,
+                    "domain": c.domain,
+                    "path": c.path
+                }
+                for c in session.cookies
+            ],
             "url": str(response.url),
             "elapsed": round(response.elapsed.total_seconds(), 3),
             "encoding": response.encoding,
@@ -1058,18 +1082,11 @@ def logout() -> JSONResponse:
     """
     logger.info("Starting logout process - Clearing session")
 
-    # Clear session cookies and reset headers
-    session.cookies.clear()
-    session.headers.clear()
-    session.headers.update({
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
-        "Accept-Encoding": "gzip, deflate",
-        "DNT": "1",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-    })
+    # Replace the session with a new instance to guarantee a fresh session
+    global session
+    session.close()
+    session = requests.Session()
+    session.verify = False
 
     logger.info("Session cleared successfully")
 
@@ -1080,6 +1097,110 @@ def logout() -> JSONResponse:
             "detail": "Session cookies and headers cleared"
         }
     )
+
+@app.post(
+    "/dowwnload",
+    summary="File Download Proxy",
+    description="Descarga archivos manteniendo sesión y cookies.",
+    tags=["Proxy"]
+)
+def download(payload: HTTPRequestPayload):
+    """
+    Descarga un archivo usando la sesión autenticada y lo retorna como descarga directa.
+    """
+    logger.info(f"Starting file download from {payload.url}")
+    logger.debug(f"Parameters: timeout={payload.timeout}s, redirects={payload.allow_redirects}")
+
+    try:
+        # Merge session headers with custom headers
+        request_headers = session.headers.copy()
+        if payload.headers:
+            request_headers.update(payload.headers)
+            logger.debug(f"Custom headers added: {list(payload.headers.keys())}")
+
+        # Merge session cookies with additional cookies
+        if payload.cookies and isinstance(payload.cookies, dict):
+            for name, data in payload.cookies.items():
+                session.cookies.set(
+                    name,
+                    data["value"],
+                    domain=data.get("domain"),
+                    path=data.get("path")
+                )
+
+        # Execute HTTP request using the configured session
+        response = session.request(
+            method=payload.method,
+            url=payload.url,
+            params=payload.params,
+            data=payload.data,
+            json=payload.json_data,
+            headers=request_headers,
+            timeout=payload.timeout,
+            allow_redirects=payload.allow_redirects,
+            stream=True
+        )
+
+        logger.info(f"Download request completed - Status: {response.status_code}, Time: {response.elapsed.total_seconds():.3f}s")
+
+        # Update session cookies with new cookies received
+        if response.cookies:
+            session.cookies.update(response.cookies)
+            logger.debug(f"Session cookies updated with {len(response.cookies)} new cookies")
+
+        # Obtener tipo de contenido y nombre sugerido de archivo
+        content_type = response.headers.get("content-type", "application/octet-stream")
+        content_disp = response.headers.get("content-disposition")
+        filename = "downloaded_file"
+        if content_disp:
+            import re
+            match = re.search(r'filename="?([^";]+)"?', content_disp)
+            if match:
+                filename = match.group(1)
+
+        # Retornar archivo como descarga directa
+        return StreamingResponse(
+            response.iter_content(chunk_size=8192),
+            media_type=content_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
+
+    except requests.exceptions.Timeout:
+        error_msg = f"Timeout while making request to {payload.url} after {payload.timeout}s"
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=408,
+            content={
+                "error": error_msg,
+                "error_type": "TimeoutError",
+                "url": payload.url,
+                "timeout": payload.timeout
+            }
+        )
+    except requests.exceptions.ConnectionError as e:
+        error_msg = f"Connection error during file download: {str(e)}"
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=502,
+            content={
+                "error": error_msg,
+                "error_type": "ConnectionError",
+                "url": payload.url
+            }
+        )
+    except Exception as e:
+        error_msg = f"Unexpected error during file download: {str(e)}"
+        logger.exception(error_msg)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": error_msg,
+                "error_type": type(e).__name__,
+                "url": payload.url
+            }
+        )
 
 @app.post(
     "/forward",
@@ -1255,13 +1376,14 @@ def forward(payload: HTTPRequestPayload) -> JSONResponse:
             logger.debug(f"Custom headers added: {list(payload.headers.keys())}")
 
         # Merge session cookies with additional cookies
-        request_cookies = session.cookies.copy()
-        if payload.cookies:
-            request_cookies.update(payload.cookies)
-            logger.debug(f"Additional cookies added: {list(payload.cookies.keys())}")
-
-        # Log request info before execution
-        logger.info(f"Executing request with {len(request_cookies)} cookies and {len(request_headers)} headers")
+        if payload.cookies and isinstance(payload.cookies, dict):
+            for name, data in payload.cookies.items():
+                session.cookies.set(
+                    name,
+                    data["value"],
+                    domain=data.get("domain"),
+                    path=data.get("path")
+                )
 
         # Execute HTTP request using the configured session
         response = session.request(
@@ -1271,7 +1393,6 @@ def forward(payload: HTTPRequestPayload) -> JSONResponse:
             data=payload.data,
             json=payload.json_data,
             headers=request_headers,
-            cookies=request_cookies,
             timeout=payload.timeout,
             allow_redirects=payload.allow_redirects
         )
@@ -1295,8 +1416,24 @@ def forward(payload: HTTPRequestPayload) -> JSONResponse:
             "status": response.reason or "OK",
             "status_code": response.status_code,
             "headers": dict(response.headers),
-            "cookies": dict(response.cookies),  # Only cookies from this response
-            "session_cookies": session.cookies.get_dict(),  # All session cookies
+            "cookies": [
+                {
+                    "name": c.name,
+                    "value": c.value,
+                    "domain": c.domain,
+                    "path": c.path
+                }
+                for c in response.cookies
+            ],
+            "session_cookies": [
+                {
+                    "name": c.name,
+                    "value": c.value,
+                    "domain": c.domain,
+                    "path": c.path
+                }
+                for c in session.cookies
+            ],
             "url": str(response.url),
             "elapsed": round(response.elapsed.total_seconds(), 3),
             "encoding": response.encoding,

@@ -35,6 +35,7 @@ A **standalone Windows executable** that provides an HTTP proxy server with pers
 | `/login`              | POST   | Authentication and session initialization       |
 | `/logout`             | POST   | Session termination and cleanup                 |
 | `/forward`            | POST   | HTTP request proxy with session persistence     |
+| `/dowwnload`          | POST   | File download proxy (direct binary stream)      |
 | `/set-headers`        | POST   | Set custom headers for all session requests     |
 | `/get-headers`        | POST   | Get all current session headers                 |
 | `/get-cookies`        | POST   | Get all current session cookies                 |
@@ -63,15 +64,28 @@ A **standalone Windows executable** that provides an HTTP proxy server with pers
 - **Development & Testing**: Local proxy for development environments
 - **Corporate Applications**: Navigate through corporate proxy requirements
 
-### 🔄 Migration from v1.x
 
-This is a complete rewrite with:
+### 🆕 What's New in v2.0.0
+
 - Improved session management
 - Enhanced error handling
 - Better logging system
 - Modern FastAPI framework
 - Comprehensive input validation
 - Windows service compatibility
+- **New endpoint `/dowwnload`: Download files directly as binary streams, ideal for documents, images, and large files.**
+
+**Example usage:**
+```http
+POST http://localhost:5003/dowwnload
+Content-Type: application/json
+
+{
+	"url": "https://files.company.com/download/file.zip",
+	"method": "GET"
+}
+```
+Returns the file as a direct download (streaming response).
 
 ### 📞 Support & Documentation
 
