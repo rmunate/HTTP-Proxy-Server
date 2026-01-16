@@ -26,7 +26,7 @@ Date: 2026-01-15
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Optional, Dict, List, Union
+from typing import Any, Dict
 
 # Third-party libraries
 import urllib3
@@ -407,7 +407,7 @@ def health() -> JSONResponse:
         # Try connecting to Google using the configured session to check internet
         logger.debug("Checking internet connectivity via google.com")
 
-        response = session.get(
+        response = requests.get(
             "https://www.google.com",
             timeout=5,
             allow_redirects=True
@@ -415,6 +415,7 @@ def health() -> JSONResponse:
 
         # Additional server info for diagnostics
         server_info = {
+            "response_cookies": len(response.cookies),
             "session_cookies": len(session.cookies),
             "session_headers": len(session.headers),
             "user_agent": session.headers.get('User-Agent', 'Not defined')
@@ -711,6 +712,82 @@ def login(payload: LoginPayload) -> JSONResponse:
                 "url": payload.url
             }
         )
+
+@app.post(
+    "/logout",
+    summary="Session Termination",
+    description="""Clears the current session cookies and headers.
+
+                   This endpoint is used to terminate the active session by:
+                   - Clearing all session cookies
+                   - Resetting authentication headers
+                   - Logging the logout action for auditing
+
+                   **Response codes:**
+                   - 200: Session cleared successfully
+                """,
+    response_model=Dict[str, str],
+    responses={
+        200: {
+            "description": "Session cleared successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "status": "OK",
+                        "detail": "Session cookies and headers cleared"
+                    }
+                }
+            }
+        }
+    },
+    tags=["Authentication"]
+)
+def logout() -> JSONResponse:
+    """
+    Clear the current session cookies and headers.
+
+    This endpoint is essential for session management:
+    1. Clears all cookies stored in the global session
+    2. Resets any authentication headers
+    3. Logs the logout action for auditing purposes
+
+    Returns
+    -------
+    JSONResponse
+        JSON response confirming that the session has been cleared.
+
+    Examples
+    --------
+    >>> # Successful logout response
+    >>> {
+    ...     "status": "OK",
+    ...     "detail": "Session cookies and headers cleared"
+    ... }
+    """
+    logger.info("Starting logout process - Clearing session")
+
+    # Clear session cookies and reset headers
+    session.cookies.clear()
+    session.headers.clear()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "es-ES,es;q=0.8,en-US;q=0.5,en;q=0.3",
+        "Accept-Encoding": "gzip, deflate",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+    })
+
+    logger.info("Session cleared successfully")
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "OK",
+            "detail": "Session cookies and headers cleared"
+        }
+    )
 
 @app.post(
     "/forward",
