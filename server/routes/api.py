@@ -1,27 +1,6 @@
-import logging
-import requests
-from typing import Any, Dict
-from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import JSONResponse, StreamingResponse
-
-# Import models (these need to exist)
-try:
-    from ..request.login_payload import LoginPayload
-    from ..request.request_payload import HTTPRequestPayload  
-    from ..response.api_response import APIResponse
-except ImportError:
-    # Temporary placeholder classes if models don't exist
-    from pydantic import BaseModel
-    class LoginPayload(BaseModel): pass
-    class HTTPRequestPayload(BaseModel): pass
-    class APIResponse(BaseModel): pass
-
-# Configure logger
-logger = logging.getLogger(__name__)
-
-# Initialize requests session (this will be managed by middleware later)
-session = requests.Session()
-session.verify = False
+from typing import Any
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
 router = APIRouter(
     tags=[
@@ -93,8 +72,6 @@ def health() -> JSONResponse:
     2. Tests internet connectivity using the configured session
     3. Provides additional information about the session state
     4. Logs each check for auditing purposes
-    
-    Note: Error handling is managed centrally by SessionHandlerMiddleware
 
     Returns
     -------
@@ -116,232 +93,84 @@ def health() -> JSONResponse:
     """
     logger.info("Starting service health check")
 
-    # Try connecting to Google to check internet
-    logger.debug("Checking internet connectivity via google.com")
+    try:
+        # Try connecting to Google using the configured session to check internet
+        logger.debug("Checking internet connectivity via google.com")
 
-    response = requests.get(
-        "https://www.google.com",
-        timeout=5,
-        allow_redirects=True
-    )
-
-    # Additional server info for diagnostics
-    server_info = {
-        "response_cookies": len(response.cookies),
-        "session_cookies": len(session.cookies),
-        "session_headers": len(session.headers),
-        "user_agent": session.headers.get('User-Agent', 'Not defined')
-    }
-
-    if response.status_code == 200:
-        logger.info("Health check successful - Internet available")
-        return JSONResponse(
-            status_code=200,
-            content={
-                "status": "OK",
-                "internet": True,
-                "detail": "Internet connection available",
-                "server_info": server_info,
-                "response_time_ms": round(response.elapsed.total_seconds() * 1000, 2)
-            },
+        response = requests.get(
+            "https://www.google.com",
+            timeout=5,
+            allow_redirects=True
         )
-    else:
-        logger.warning(f"Limited connectivity - Response code: {response.status_code}")
-        server_info["http_status"] = response.status_code
+
+        # Additional server info for diagnostics
+        server_info = {
+            "response_cookies": len(response.cookies),
+            "session_cookies": len(session.cookies),
+            "session_headers": len(session.headers),
+            "user_agent": session.headers.get('User-Agent', 'Not defined')
+        }
+
+        if response.status_code == 200:
+            logger.info("Health check successful - Internet available")
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "status": "OK",
+                    "internet": True,
+                    "detail": "Internet connection available",
+                    "server_info": server_info,
+                    "response_time_ms": round(response.elapsed.total_seconds() * 1000, 2)
+                },
+            )
+        else:
+            logger.warning(f"Limited connectivity - Response code: {response.status_code}")
+            server_info["http_status"] = response.status_code
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "status": "Service Unavailable", # NOSONAR
+                    "internet": False,
+                    "detail": f"Unexpected response from Google: HTTP {response.status_code}",
+                    "server_info": server_info
+                },
+            )
+
+    except requests.exceptions.Timeout:
+        logger.error("Timeout while checking internet connectivity")
         return JSONResponse(
             status_code=503,
             content={
                 "status": "Service Unavailable",
                 "internet": False,
-                "detail": f"Unexpected response from Google: HTTP {response.status_code}",
-                "server_info": server_info
+                "detail": "Timeout connecting to google.com",
+                "server_info": {"error_type": "Timeout"}
+            },
+        )
+    except requests.exceptions.ConnectionError:
+        logger.error("Connection error while checking internet")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "Service Unavailable",
+                "internet": False,
+                "detail": "Connection error - Check network configuration",
+                "server_info": {"error_type": "ConnectionError"}
+            },
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error during health check: {str(e)}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "Service Unavailable",
+                "internet": False,
+                "detail": "Internal server error while checking connectivity",
+                "server_info": {"error_type": type(e).__name__, "error_message": str(e)}
             },
         )
 
-@router.post(
-    "/subscribe",
-    summary="Create New Session",
-    description="""Creates a new session manually and returns session information.
-
-                   This endpoint allows you to:
-                   - Create a session with custom parameters
-                   - Get the session ID for future requests
-                   - Set initial session data
-
-                   **Response codes:**
-                   - 201: Session created successfully
-                   - 400: Invalid input parameters
-                """,
-    response_model=dict[str, Any],
-    responses={
-        201: {
-            "description": "Session created successfully",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": "Created",
-                        "session_id": "12345678-1234-1234-1234-123456789abc",
-                        "message": "Session created successfully",
-                        "session_info": {
-                            "client_ip": "192.168.1.100",
-                            "created_at": "2026-01-20T15:30:00",
-                            "expires_at": "2026-01-20T16:30:00"
-                        }
-                    }
-                }
-            }
-        }
-    },
-    tags=["Session"]
-)
-def subscribe(request: Request, user_data: Dict[str, Any] = None) -> JSONResponse:
-    """
-    Create a new session manually.
-    
-    This endpoint creates a new session and can optionally store initial user data.
-    The session will be accessible via the returned session_id.
-    
-    Note: Error handling is managed centrally by SessionHandlerMiddleware
-    
-    Parameters
-    ----------
-    request : Request
-        FastAPI request object (automatically injected)
-    user_data : Dict[str, Any], optional
-        Optional initial data to store in the session
-    
-    Returns
-    -------
-    JSONResponse
-        JSON response with session creation details
-    """
-    # Get session from middleware (already created automatically)
-    session_id = getattr(request.state, 'session_id', None)
-    session_data = getattr(request.state, 'session_data', None)
-    
-    if not session_id or not session_data:
-        raise HTTPException(
-            status_code=500,
-            detail="Session middleware not working properly"
-        )
-    
-    # Store initial user data if provided
-    if user_data:
-        session_data["user_data"].update(user_data)
-    
-    logger.info(f"Session accessed via subscribe: {session_id[:8]}...")
-    
-    from datetime import timedelta
-    return JSONResponse(
-        status_code=201,
-        content={
-            "status": "Created",
-            "session_id": session_id,
-            "message": "Session created successfully",
-            "session_info": {
-                "client_ip": session_data["client_ip"],
-                "user_agent": session_data["user_agent"],
-                "created_at": session_data["created_at"].isoformat(),
-                "expires_at": (session_data["created_at"] + timedelta(seconds=3600)).isoformat(),
-                "is_authenticated": session_data["is_authenticated"],
-                "user_data": session_data["user_data"]
-            }
-        }
-    )
-
-@router.delete(
-    "/unsubscribe/{session_id}",
-    summary="Delete Session",
-    description="""Deletes a specific session by ID.
-
-                   This endpoint allows you to:
-                   - Remove a session from memory
-                   - Force logout for a specific session
-                   - Clean up abandoned sessions
-
-                   **Response codes:**
-                   - 200: Session deleted successfully
-                   - 404: Session not found
-                """,
-    response_model=dict[str, Any],
-    responses={
-        200: {
-            "description": "Session deleted successfully",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "status": "OK",
-                        "message": "Session deleted successfully",
-                        "session_id": "12345678-1234-1234-1234-123456789abc"
-                    }
-                }
-            }
-        },
-        404: {
-            "description": "Session not found",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "error": "Session not found",
-                        "session_id": "invalid-session-id"
-                    }
-                }
-            }
-        }
-    },
-    tags=["Session"]
-)
-def unsubscribe(session_id: str, request: Request) -> JSONResponse:
-    """
-    Delete a specific session.
-    
-    This endpoint removes a session from memory, effectively logging out
-    the user and cleaning up session resources.
-    
-    Note: Error handling is managed centrally by SessionHandlerMiddleware
-    
-    Parameters
-    ----------
-    session_id : str
-        The ID of the session to delete
-    request : Request
-        FastAPI request object (automatically injected)
-    
-    Returns
-    -------
-    JSONResponse
-        JSON response confirming session deletion
-    """
-    # Access current middleware session to get access to all sessions
-    current_session_id = getattr(request.state, 'session_id', None)
-    current_session_data = getattr(request.state, 'session_data', None)
-    
-    if not current_session_id:
-        raise HTTPException(
-            status_code=500,
-            detail="Session middleware not working properly"
-        )
-    
-    # For security, you can only delete your own session or implement admin logic here
-    if session_id != current_session_id:
-        raise HTTPException(
-            status_code=403,
-            detail="You can only delete your own session"
-        )
-    
-    # The middleware will handle session cleanup when this request ends
-    logger.info(f"Session marked for deletion: {session_id[:8]}...")
-    
-    return JSONResponse(
-        status_code=200,
-        content={
-            "status": "OK",
-            "message": "Session will be deleted after this request",
-            "session_id": session_id
-        }
-    )
-
-@router.post(
+@app.post(
     "/set-headers",
     summary="Set Custom Session Headers",
     description="""Sets custom headers for the global HTTP session.
@@ -440,7 +269,7 @@ def set_headers(payload: Dict[str, str]) -> JSONResponse:
         }
     )
 
-@router.post(
+@app.post(
     "/get-headers",
     summary="Get Current Session Headers",
     description="""Retrieves the current headers set in the global HTTP session.
@@ -505,7 +334,7 @@ def get_headers() -> JSONResponse:
         }
     )
 
-@router.post(
+@app.post(
     "/get-cookies",
     summary="Get Current Session Cookies",
     description="""Retrieves the current cookies stored in the global HTTP session.
@@ -578,7 +407,7 @@ def get_cookies() -> JSONResponse:
         }
     )
 
-@router.post(
+@app.post(
     "/get-session-info",
     summary="Get Session Information",
     description="""Retrieves detailed information about the current HTTP session.
@@ -658,7 +487,7 @@ def get_session_info() -> JSONResponse:
         }
     )
 
-@router.post(
+@app.post(
     "/login",
     summary="Authentication and Session Management",
     description="""Performs authentication against an external system and maintains an active session.
@@ -783,73 +612,123 @@ def login(payload: LoginPayload) -> JSONResponse:
     logger.info(f"Starting login process for URL: {payload.url}")
     logger.debug(f"HTTP Method: {payload.method}, Timeout: {payload.timeout}s")
 
-    # Prepare additional headers if provided
-    request_headers = session.headers.copy()
-    if payload.headers:
-        request_headers.update(payload.headers)
-        logger.debug(f"Additional headers added: {list(payload.headers.keys())}")
+    try:
+        # Prepare additional headers if provided
+        request_headers = session.headers.copy()
+        if payload.headers:
+            request_headers.update(payload.headers)
+            logger.debug(f"Additional headers added: {list(payload.headers.keys())}")
 
-    # Execute login request using the configured session
-    # Note: All exceptions (Timeout, ConnectionError, HTTPError) are handled by middleware
-    logger.info("Executing authentication request")
-    response = session.request(
-        method=payload.method,
-        url=payload.url,
-        params=payload.params,
-        data=payload.data,
-        json=payload.json_data,
-        headers=request_headers,
-        timeout=payload.timeout,
-        allow_redirects=payload.allow_redirects,
-    )
+        # Execute login request using the configured session
+        logger.info("Executing authentication request")
+        response = session.request(
+            method=payload.method,
+            url=payload.url,
+            params=payload.params,
+            data=payload.data,
+            json=payload.json_data,
+            headers=request_headers,
+            timeout=payload.timeout,
+            allow_redirects=payload.allow_redirects,
+        )
 
-    # Log important login information
-    logger.info(f"Login executed successfully - Status: {response.status_code}")
-    logger.info(f"Current session cookies: {len(session.cookies)} cookies")
-    logger.debug(f"Captured cookies: {list(session.cookies.keys())}")
+        # Log important login information
+        logger.info(f"Login executed successfully - Status: {response.status_code}")
+        logger.info(f"Current session cookies: {len(session.cookies)} cookies")
+        logger.debug(f"Captured cookies: {list(session.cookies.keys())}")
 
-    # Log redirections if any
-    if response.history:
-        logger.info(f"{len(response.history)} redirections processed")
-        for i, redirect in enumerate(response.history):
-            logger.debug(f"Redirection {i+1}: {redirect.url} -> {redirect.status_code}")
+        # Log redirections if any
+        if response.history:
+            logger.info(f"{len(response.history)} redirections processed")
+            for i, redirect in enumerate(response.history):
+                logger.debug(f"Redirection {i+1}: {redirect.url} -> {redirect.status_code}")
 
-    # Build detailed response
-    response_data = {
-        "status": response.reason or "OK",
-        "status_code": response.status_code,
-        "headers": dict(response.headers),
-        "cookies": [
-            {
-                "name": c.name,
-                "value": c.value,
-                "domain": c.domain,
-                "path": c.path
+        # Build detailed response
+        response_data = {
+            "status": response.reason or "OK",
+            "status_code": response.status_code,
+            "headers": dict(response.headers),
+            "cookies": [
+                {
+                    "name": c.name,
+                    "value": c.value,
+                    "domain": c.domain,
+                    "path": c.path
+                }
+                for c in session.cookies
+            ],
+            "url": str(response.url),
+            "elapsed": round(response.elapsed.total_seconds(), 3),
+            "encoding": response.encoding,
+            "ok": response.ok,
+            "history": [str(r.url) for r in response.history],
+            "content_type": response.headers.get("content-type", "unknown"),
+            "body": response.text,
+            "request_info": {
+                "method": payload.method,
+                "final_url": str(response.url),
+                "redirects_count": len(response.history)
             }
-            for c in session.cookies
-        ],
-        "url": str(response.url),
-        "elapsed": round(response.elapsed.total_seconds(), 3),
-        "encoding": response.encoding,
-        "ok": response.ok,
-        "history": [str(r.url) for r in response.history],
-        "content_type": response.headers.get("content-type", "unknown"),
-        "body": response.text,
-        "request_info": {
-            "method": payload.method,
-            "final_url": str(response.url),
-            "redirects_count": len(response.history)
         }
-    }
 
-    logger.info("Login response prepared successfully")
+        logger.info("Login response prepared successfully")
 
-    return JSONResponse(
-        status_code=response.status_code,
-        content=response_data
-    )
+        return JSONResponse(
+            status_code=response.status_code,
+            content=response_data
+        )
 
-@router.post(
+    except requests.exceptions.Timeout:
+        error_msg = f"Timeout while logging in to {payload.url} after {payload.timeout}s"
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=408,  # Request Timeout
+            content={
+                "error": error_msg,
+                "error_type": "TimeoutError",
+                "url": payload.url,
+                "timeout": payload.timeout
+            }
+        )
+
+    except requests.exceptions.ConnectionError as e:
+        error_msg = f"Connection error during login: {str(e)}"
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=502,  # Bad Gateway
+            content={
+                "error": error_msg,
+                "error_type": "ConnectionError",
+                "url": payload.url
+            }
+        )
+
+    except requests.exceptions.HTTPError as e:
+        error_msg = f"HTTP error during login: {str(e)}"
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": error_msg,
+                "error_type": "HTTPError",
+                "url": payload.url
+            }
+        )
+
+    except Exception as e:
+        # Handle any other unexpected error
+        error_msg = f"Unexpected error during login: {str(e)}"
+        logger.exception(error_msg)  # This includes the full stack trace
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": error_msg,
+                "error_type": type(e).__name__,
+                "url": payload.url
+            }
+        )
+
+@app.post(
     "/logout",
     summary="Session Termination",
     description="""Clears the current session cookies and headers.
@@ -918,7 +797,7 @@ def logout() -> JSONResponse:
         }
     )
 
-@router.post(
+@app.post(
     "/dowwnload",
     summary="File Download Proxy",
     description="Descarga archivos manteniendo sesión y cookies.",
@@ -926,69 +805,103 @@ def logout() -> JSONResponse:
 )
 def download(payload: HTTPRequestPayload):
     """
-    Download a file using authenticated session and return it as direct download.
-    
-    Note: All exceptions (Timeout, ConnectionError) are handled by middleware
+    Descarga un archivo usando la sesión autenticada y lo retorna como descarga directa.
     """
     logger.info(f"Starting file download from {payload.url}")
     logger.debug(f"Parameters: timeout={payload.timeout}s, redirects={payload.allow_redirects}")
 
-    # Merge session headers with custom headers
-    request_headers = session.headers.copy()
-    if payload.headers:
-        request_headers.update(payload.headers)
-        logger.debug(f"Custom headers added: {list(payload.headers.keys())}")
+    try:
+        # Merge session headers with custom headers
+        request_headers = session.headers.copy()
+        if payload.headers:
+            request_headers.update(payload.headers)
+            logger.debug(f"Custom headers added: {list(payload.headers.keys())}")
 
-    # Merge session cookies with additional cookies
-    if payload.cookies and isinstance(payload.cookies, dict):
-        for name, data in payload.cookies.items():
-            session.cookies.set(
-                name,
-                data["value"],
-                domain=data.get("domain"),
-                path=data.get("path")
-            )
+        # Merge session cookies with additional cookies
+        if payload.cookies and isinstance(payload.cookies, dict):
+            for name, data in payload.cookies.items():
+                session.cookies.set(
+                    name,
+                    data["value"],
+                    domain=data.get("domain"),
+                    path=data.get("path")
+                )
 
-    # Execute HTTP request using the configured session
-    response = session.request(
-        method=payload.method,
-        url=payload.url,
-        params=payload.params,
-        data=payload.data,
-        json=payload.json_data,
-        headers=request_headers,
-        timeout=payload.timeout,
-        allow_redirects=payload.allow_redirects,
-        stream=True
-    )
+        # Execute HTTP request using the configured session
+        response = session.request(
+            method=payload.method,
+            url=payload.url,
+            params=payload.params,
+            data=payload.data,
+            json=payload.json_data,
+            headers=request_headers,
+            timeout=payload.timeout,
+            allow_redirects=payload.allow_redirects,
+            stream=True
+        )
 
-    logger.info(f"Download request completed - Status: {response.status_code}, Time: {response.elapsed.total_seconds():.3f}s")
+        logger.info(f"Download request completed - Status: {response.status_code}, Time: {response.elapsed.total_seconds():.3f}s")
 
-    # Update session cookies with new cookies received
-    if response.cookies:
-        session.cookies.update(response.cookies)
-        logger.debug(f"Session cookies updated with {len(response.cookies)} new cookies")
+        # Update session cookies with new cookies received
+        if response.cookies:
+            session.cookies.update(response.cookies)
+            logger.debug(f"Session cookies updated with {len(response.cookies)} new cookies")
 
-    # Get content type and suggested filename
-    content_type = response.headers.get("content-type", "application/octet-stream")
-    content_disp = response.headers.get("content-disposition")
-    filename = "downloaded_file"
-    if content_disp:
-        import re
-        match = re.search(r'filename="?([^";]+)"?', content_disp)
-        if match:
-            filename = match.group(1)
+        # Obtener tipo de contenido y nombre sugerido de archivo
+        content_type = response.headers.get("content-type", "application/octet-stream")
+        content_disp = response.headers.get("content-disposition")
+        filename = "downloaded_file"
+        if content_disp:
+            import re
+            match = re.search(r'filename="?([^";]+)"?', content_disp)
+            if match:
+                filename = match.group(1)
 
-    # Return file as direct download
-    return StreamingResponse(
-        response.iter_content(chunk_size=8192),
-        media_type=content_type,
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
-        }
-    )
+        # Retornar archivo como descarga directa
+        return StreamingResponse(
+            response.iter_content(chunk_size=8192),
+            media_type=content_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"'
+            }
+        )
 
-@router.post(
+    except requests.exceptions.Timeout:
+        error_msg = f"Timeout while making request to {payload.url} after {payload.timeout}s"
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=408,
+            content={
+                "error": error_msg,
+                "error_type": "TimeoutError",
+                "url": payload.url,
+                "timeout": payload.timeout
+            }
+        )
+    except requests.exceptions.ConnectionError as e:
+        error_msg = f"Connection error during file download: {str(e)}"
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=502,
+            content={
+                "error": error_msg,
+                "error_type": "ConnectionError",
+                "url": payload.url
+            }
+        )
+    except Exception as e:
+        error_msg = f"Unexpected error during file download: {str(e)}"
+        logger.exception(error_msg)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": error_msg,
+                "error_type": type(e).__name__,
+                "url": payload.url
+            }
+        )
+
+@app.post(
     "/forward",
     summary="HTTP Request Proxy",
     description="""Forwards HTTP requests while maintaining active session and cookies.
@@ -1154,96 +1067,150 @@ def forward(payload: HTTPRequestPayload) -> JSONResponse:
     logger.info(f"Forwarding {payload.method} request to {payload.url}")
     logger.debug(f"Parameters: timeout={payload.timeout}s, redirects={payload.allow_redirects}")
 
-    # Merge session headers with custom headers
-    request_headers = session.headers.copy()
-    if payload.headers:
-        request_headers.update(payload.headers)
-        logger.debug(f"Custom headers added: {list(payload.headers.keys())}")
+    try:
+        # Merge session headers with custom headers
+        request_headers = session.headers.copy()
+        if payload.headers:
+            request_headers.update(payload.headers)
+            logger.debug(f"Custom headers added: {list(payload.headers.keys())}")
 
-    # Merge session cookies with additional cookies
-    if payload.cookies and isinstance(payload.cookies, dict):
-        for name, data in payload.cookies.items():
-            session.cookies.set(
-                name,
-                data["value"],
-                domain=data.get("domain"),
-                path=data.get("path")
-            )
+        # Merge session cookies with additional cookies
+        if payload.cookies and isinstance(payload.cookies, dict):
+            for name, data in payload.cookies.items():
+                session.cookies.set(
+                    name,
+                    data["value"],
+                    domain=data.get("domain"),
+                    path=data.get("path")
+                )
 
-    # Execute HTTP request using the configured session
-    # Note: All exceptions (Timeout, ConnectionError, HTTPError) are handled by middleware
-    response = session.request(
-        method=payload.method,
-        url=payload.url,
-        params=payload.params,
-        data=payload.data,
-        json=payload.json_data,
-        headers=request_headers,
-        timeout=payload.timeout,
-        allow_redirects=payload.allow_redirects
-    )
+        # Execute HTTP request using the configured session
+        response = session.request(
+            method=payload.method,
+            url=payload.url,
+            params=payload.params,
+            data=payload.data,
+            json=payload.json_data,
+            headers=request_headers,
+            timeout=payload.timeout,
+            allow_redirects=payload.allow_redirects
+        )
 
-    # Log response info
-    logger.info(f"Request completed - Status: {response.status_code}, Time: {response.elapsed.total_seconds():.3f}s")
+        # Log response info
+        logger.info(f"Request completed - Status: {response.status_code}, Time: {response.elapsed.total_seconds():.3f}s")
 
-    # Log redirects if any
-    if response.history:
-        logger.info(f"{len(response.history)} redirects processed")
-        for i, redirect in enumerate(response.history):
-            logger.debug(f"Redirect {i+1}: {redirect.url} -> {redirect.status_code}")
+        # Log redirects if any
+        if response.history:
+            logger.info(f"{len(response.history)} redirects processed")
+            for i, redirect in enumerate(response.history):
+                logger.debug(f"Redirect {i+1}: {redirect.url} -> {redirect.status_code}")
 
-    # Update session cookies with new cookies received
-    if response.cookies:
-        session.cookies.update(response.cookies)
-        logger.debug(f"Session cookies updated with {len(response.cookies)} new cookies")
+        # Update session cookies with new cookies received
+        if response.cookies:
+            session.cookies.update(response.cookies)
+            logger.debug(f"Session cookies updated with {len(response.cookies)} new cookies")
 
-    # Build detailed response
-    response_data = {
-        "status": response.reason or "OK",
-        "status_code": response.status_code,
-        "headers": dict(response.headers),
-        "cookies": [
-            {
-                "name": c.name,
-                "value": c.value,
-                "domain": c.domain,
-                "path": c.path
+        # Build detailed response
+        response_data = {
+            "status": response.reason or "OK",
+            "status_code": response.status_code,
+            "headers": dict(response.headers),
+            "cookies": [
+                {
+                    "name": c.name,
+                    "value": c.value,
+                    "domain": c.domain,
+                    "path": c.path
+                }
+                for c in response.cookies
+            ],
+            "session_cookies": [
+                {
+                    "name": c.name,
+                    "value": c.value,
+                    "domain": c.domain,
+                    "path": c.path
+                }
+                for c in session.cookies
+            ],
+            "url": str(response.url),
+            "elapsed": round(response.elapsed.total_seconds(), 3),
+            "encoding": response.encoding,
+            "ok": response.ok,
+            "history": [str(r.url) for r in response.history],
+            "content_type": response.headers.get("content-type", "unknown"),
+            "body": response.text,
+            "request_info": {
+                "method": payload.method,
+                "original_url": payload.url,
+                "final_url": str(response.url),
+                "redirects_count": len(response.history),
+                "request_size_bytes": len(str(payload.data or payload.json_data or "")),
+                "response_size_bytes": len(response.content)
             }
-            for c in response.cookies
-        ],
-        "session_cookies": [
-            {
-                "name": c.name,
-                "value": c.value,
-                "domain": c.domain,
-                "path": c.path
-            }
-            for c in session.cookies
-        ],
-        "url": str(response.url),
-        "elapsed": round(response.elapsed.total_seconds(), 3),
-        "encoding": response.encoding,
-        "ok": response.ok,
-        "history": [str(r.url) for r in response.history],
-        "content_type": response.headers.get("content-type", "unknown"),
-        "body": response.text,
-        "request_info": {
-            "method": payload.method,
-            "original_url": payload.url,
-            "final_url": str(response.url),
-            "redirects_count": len(response.history),
-            "request_size_bytes": len(str(payload.data or payload.json_data or "")),
-            "response_size_bytes": len(response.content)
         }
-    }
 
-    logger.info("Proxy response prepared successfully")
+        logger.info("Proxy response prepared successfully")
 
-    # Return with the same status code as the target server
-    return JSONResponse(
-        status_code=response.status_code,
-        content=response_data
-    )
+        # Return with the same status code as the target server
+        return JSONResponse(
+            status_code=response.status_code,
+            content=response_data
+        )
+
+    except requests.exceptions.Timeout:
+        error_msg = f"Timeout while making request to {payload.url} after {payload.timeout}s"
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=408,  # Request Timeout
+            content={
+                "error": error_msg,
+                "error_type": "TimeoutError",
+                "url": payload.url,
+                "timeout": payload.timeout,
+                "method": payload.method
+            }
+        )
+
+    except requests.exceptions.ConnectionError as e:
+        error_msg = f"Connection error while forwarding request: {str(e)}"
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=502,  # Bad Gateway
+            content={
+                "error": error_msg,
+                "error_type": "ConnectionError",
+                "url": payload.url,
+                "method": payload.method
+            }
+        )
+
+    except requests.exceptions.HTTPError as e:
+        error_msg = f"HTTP error while forwarding request: {str(e)}"
+        logger.error(error_msg)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": error_msg,
+                "error_type": "HTTPError",
+                "url": payload.url,
+                "method": payload.method
+            }
+        )
+
+    except Exception as e:
+        # Handle any other unexpected error
+        error_msg = f"Unexpected error while forwarding request: {str(e)}"
+        logger.exception(error_msg)  # Full stack trace in logs
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": error_msg,
+                "error_type": type(e).__name__,
+                "url": payload.url,
+                "method": payload.method
+            }
+        )
 
 
 
