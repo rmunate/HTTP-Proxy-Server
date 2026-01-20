@@ -10,6 +10,9 @@ Este proyecto contiene un servidor HTTP proxy compilado como ejecutable para Win
 - ✅ **Sin consola visible**: Funciona como servicio en segundo plano
 - ✅ **Sesiones persistentes**: Mantiene cookies y autenticación automáticamente
 - ✅ **API REST completa**: Endpoints para login, proxy y health check
+- ✅ **Gestión avanzada de sesiones**: Subscribe/unsubscribe con middleware automático
+- ✅ **Configuración flexible**: Archivos .env y variables de entorno
+- ✅ **Limpieza automática**: Eliminación automática de sesiones expiradas
 - ✅ **Documentación integrada**: Swagger UI disponible en `/docs`
 - ✅ **Logging detallado**: Logs automáticos en archivo `.log`
 - ✅ **Tamaño optimizado**: Solo 11.4 MB con todas las dependencias
@@ -27,12 +30,41 @@ HttpProxyServer.exe
 
 ### 📊 Health Check
 ```http
+<<<<<<< HEAD
 GET http://localhost:5003/health
 ```
 
 ### 🔐 Login / Autenticación
 ```http
 POST http://localhost:5003/login
+=======
+GET http://localhost:8000/health
+```
+
+### 🔗 Subscribe / Crear Sesión
+```http
+POST http://localhost:8000/subscribe
+Content-Type: application/json
+
+{
+  "user_data": {
+    "username": "usuario_opcional",
+    "department": "ventas"
+  }
+}
+```
+> Crea una nueva sesión personalizada. El parámetro `user_data` es opcional y permite almacenar información adicional del usuario.
+
+### 🚫 Unsubscribe / Eliminar Sesión
+```http
+DELETE http://localhost:8000/unsubscribe/{session_id}
+```
+> Elimina una sesión específica del sistema. Útil para limpieza manual o logout forzado.
+
+### 🔐 Login / Autenticación
+```http
+POST http://localhost:8000/login
+>>>>>>> cc3bf0e (add sessions, env, routes to subscribe and unsubscribe)
 Content-Type: application/json
 
 {
@@ -48,14 +80,14 @@ Content-Type: application/json
 }
 ```
 
-### � Logout / Terminación de Sesión
+### 📤 Logout / Terminación de Sesión
 ```http
-POST http://localhost:5003/logout
+POST http://localhost:8000/logout
 ```
 
-### �🔄 Proxy / Reenvío de Peticiones
+### 🔄 Proxy / Reenvío de Peticiones
 ```http
-POST http://localhost:5003/forward
+POST http://localhost:8000/forward
 Content-Type: application/json
 
 {
@@ -69,7 +101,7 @@ Content-Type: application/json
 
 ### 🛠️ Set Headers / Configurar Headers de Sesión
 ```http
-POST http://localhost:5003/set-headers
+POST http://localhost:8000/set-headers
 Content-Type: application/json
 
 {
@@ -81,20 +113,20 @@ Content-Type: application/json
 
 ### 🗂️ Obtener Headers de Sesión
 ```http
-POST http://localhost:5003/get-headers
+POST http://localhost:8000/get-headers
 ```
 Devuelve todos los headers actualmente configurados en la sesión HTTP del proxy.
 
 ### 🍪 Obtener Cookies de Sesión
 ```http
-POST http://localhost:5003/get-cookies
+POST http://localhost:8000/get-cookies
 ```
 Devuelve todas las cookies almacenadas en la sesión actual del proxy.
 
 
 ### 📥 Descarga de Archivos
 ```http
-POST http://localhost:5003/dowwnload
+POST http://localhost:8000/dowwnload
 Content-Type: application/json
 
 {
@@ -138,23 +170,45 @@ POST /set-headers
 
 Una vez que el servidor esté ejecutándose, accede a:
 
-- **Swagger UI**: http://localhost:5003/docs
-- **ReDoc**: http://localhost:5003/redoc
-- **Health Check**: http://localhost:5003/health
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+- **Health Check**: http://localhost:8000/health
 
 ## 🔧 Configuración Avanzada
 
+### Configuración con Archivo .env
+
+Crea un archivo `.env` en la misma carpeta que el ejecutable para configuración automática:
+
+```env
+# Configuración del servidor
+SERVER_HOST=0.0.0.0
+SERVER_PORT=8000
+LOG_LEVEL=info
+RELOAD=false
+WORKERS=1
+ACCESS_LOG=false
+
+# Configuración de sesiones
+SESSION_TIMEOUT=600
+CLEANUP_INTERVAL=300
+```
+
 ### Variables de Entorno
 
-Puedes configurar el servidor usando variables de entorno:
+También puedes configurar el servidor usando variables de entorno:
 
 ```bash
 # Configurar host y puerto
 set SERVER_HOST=0.0.0.0
-set SERVER_PORT=8080
+set SERVER_PORT=9000
 
 # Configurar nivel de logging
 set LOG_LEVEL=debug
+
+# Configurar sesiones
+set SESSION_TIMEOUT=1200
+set CLEANUP_INTERVAL=600
 
 # Habilitar logs de acceso HTTP
 set ACCESS_LOG=true
@@ -163,17 +217,25 @@ set ACCESS_LOG=true
 HttpProxyServer.exe
 ```
 
+### Prioridad de Configuración
+
+1. **Archivo .env** (mayor prioridad)
+2. **Variables de entorno**
+3. **Valores por defecto**
+
 ### Archivo de Configuración
 
 Crear archivo `.env` en la misma carpeta que el ejecutable:
 
 ```env
 SERVER_HOST=0.0.0.0
-SERVER_PORT=5003
+SERVER_PORT=8000
 LOG_LEVEL=info
 ACCESS_LOG=false
 RELOAD=false
 WORKERS=1
+SESSION_TIMEOUT=600
+CLEANUP_INTERVAL=300
 ```
 
 ## 📝 Logs y Debugging
@@ -217,15 +279,27 @@ WORKERS=1
 tasklist | findstr HttpProxyServer
 
 # Verificar conectividad
-curl http://localhost:5003/health
+curl http://localhost:8000/health
 ```
 
 
 ### 🌀 Workflow Típico de Uso
 
+#### 0. Crear Sesión (Nuevo)
+```bash
+curl -X POST "http://localhost:8000/subscribe" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_data": {
+      "username": "usuario_corporativo",
+      "department": "IT"
+    }
+  }'
+```
+
 #### 1. Autenticación
 ```bash
-curl -X POST "http://localhost:5003/login" \
+curl -X POST "http://localhost:8000/login" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://sistema.empresa.com/login",
@@ -239,7 +313,7 @@ curl -X POST "http://localhost:5003/login" \
 
 #### 2. Realizar Peticiones Autenticadas
 ```bash
-curl -X POST "http://localhost:5003/forward" \
+curl -X POST "http://localhost:8000/forward" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://sistema.empresa.com/api/datos",
@@ -249,7 +323,7 @@ curl -X POST "http://localhost:5003/forward" \
 
 #### 3. Descargar Archivos (NUEVO)
 ```bash
-curl -X POST "http://localhost:5003/dowwnload" \
+curl -X POST "http://localhost:8000/dowwnload" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://files.company.com/download/file.zip",
@@ -259,7 +333,7 @@ curl -X POST "http://localhost:5003/dowwnload" \
 
 #### 0. Configurar Headers Personalizados (opcional)
 ```bash
-curl -X POST "http://localhost:5003/set-headers" \
+curl -X POST "http://localhost:8000/set-headers" \
   -H "Content-Type: application/json" \
   -d '{
     "X-Custom-Header": "ValorPersonalizado",
@@ -269,7 +343,7 @@ curl -X POST "http://localhost:5003/set-headers" \
 
 #### 4. Logout (Opcional)
 ```bash
-curl -X POST "http://localhost:5003/logout"
+curl -X POST "http://localhost:8000/logout"
 ```
 
 ## 🚨 Solución de Problemas
@@ -341,6 +415,6 @@ pip install -r requirements.txt
 
 ---
 
-**Versión**: 2.0.0
-**Fecha**: 15 de Enero de 2026
+**Versión**: 3.0.0
+**Fecha**: 20 de Enero de 2026
 **Compatible con**: Windows 10/11, Server 2016+
