@@ -10,6 +10,9 @@ This project provides an HTTP proxy server compiled as a Windows executable that
 - ✅ **No visible console**: Runs as a background service
 - ✅ **Persistent sessions**: Automatically maintains cookies and authentication
 - ✅ **Full REST API**: Endpoints for login, proxy, and health check
+- ✅ **Advanced session management**: Subscribe/unsubscribe with automatic middleware
+- ✅ **Flexible configuration**: .env files and environment variables support
+- ✅ **Automatic cleanup**: Automatic expired session removal
 - ✅ **Integrated documentation**: Swagger UI available at `/docs`
 - ✅ **Detailed logging**: Automatic logs in `.log` file
 - ✅ **Optimized size**: Only 11.4 MB including all dependencies
@@ -27,12 +30,32 @@ HttpProxyServer.exe
 
 ### 📊 Health Check
 ```http
-GET http://localhost:5003/health
+GET http://localhost:8000/health
 ```
+
+### 🔗 Subscribe / Create Session
+```http
+POST http://localhost:8000/subscribe
+Content-Type: application/json
+
+{
+  "user_data": {
+    "username": "optional_user",
+    "department": "sales"
+  }
+}
+```
+> Creates a new personalized session. The `user_data` parameter is optional and allows storing additional user information.
+
+### 🚫 Unsubscribe / Delete Session
+```http
+DELETE http://localhost:8000/unsubscribe/{session_id}
+```
+> Removes a specific session from the system. Useful for manual cleanup or forced logout.
 
 ### 🔐 Login / Authentication
 ```http
-POST http://localhost:5003/login
+POST http://localhost:8000/login
 Content-Type: application/json
 
 {
@@ -50,12 +73,12 @@ Content-Type: application/json
 
 ### � Logout / Session Termination
 ```http
-POST http://localhost:5003/logout
+POST http://localhost:8000/logout
 ```
 
 ### �🔄 Proxy / Request Forwarding
 ```http
-POST http://localhost:5003/forward
+POST http://localhost:8000/forward
 Content-Type: application/json
 
 {
@@ -69,7 +92,7 @@ Content-Type: application/json
 
 ### 🛠️ Set Headers / Set Session Headers
 ```http
-POST http://localhost:5003/set-headers
+POST http://localhost:8000/set-headers
 Content-Type: application/json
 
 {
@@ -81,20 +104,20 @@ Content-Type: application/json
 
 ### 🗂️ Get Session Headers
 ```http
-POST http://localhost:5003/get-headers
+POST http://localhost:8000/get-headers
 ```
 Returns all headers currently configured in the proxy HTTP session.
 
 ### 🍪 Get Session Cookies
 ```http
-POST http://localhost:5003/get-cookies
+POST http://localhost:8000/get-cookies
 ```
 Returns all cookies stored in the current proxy session.
 
 
 ### 📥 File Download Proxy
 ```http
-POST http://localhost:5003/dowwnload
+POST http://localhost:8000/dowwnload
 Content-Type: application/json
 
 {
@@ -138,23 +161,45 @@ POST /set-headers
 
 Once the server is running, access:
 
-- **Swagger UI**: http://localhost:5003/docs
-- **ReDoc**: http://localhost:5003/redoc
-- **Health Check**: http://localhost:5003/health
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+- **Health Check**: http://localhost:8000/health
 
 ## 🔧 Advanced Configuration
 
+### Configuration with .env File
+
+Create a `.env` file in the same folder as the executable for automatic configuration:
+
+```env
+# Server settings
+SERVER_HOST=0.0.0.0
+SERVER_PORT=8000
+LOG_LEVEL=info
+RELOAD=false
+WORKERS=1
+ACCESS_LOG=false
+
+# Session settings
+SESSION_TIMEOUT=600
+CLEANUP_INTERVAL=300
+```
+
 ### Environment Variables
 
-You can configure the server using environment variables:
+You can also configure the server using environment variables:
 
 ```bash
 # Set host and port
 set SERVER_HOST=0.0.0.0
-set SERVER_PORT=8080
+set SERVER_PORT=9000
 
 # Set logging level
 set LOG_LEVEL=debug
+
+# Configure sessions
+set SESSION_TIMEOUT=1200
+set CLEANUP_INTERVAL=600
 
 # Enable HTTP access logs
 set ACCESS_LOG=true
@@ -169,11 +214,13 @@ Create a `.env` file in the same folder as the executable:
 
 ```env
 SERVER_HOST=0.0.0.0
-SERVER_PORT=5003
+SERVER_PORT=8000
 LOG_LEVEL=info
 ACCESS_LOG=false
 RELOAD=false
 WORKERS=1
+SESSION_TIMEOUT=600
+CLEANUP_INTERVAL=300
 ```
 
 ## 📝 Logs and Debugging
@@ -217,15 +264,27 @@ WORKERS=1
 tasklist | findstr HttpProxyServer
 
 # Check connectivity
-curl http://localhost:5003/health
+curl http://localhost:8000/health
 ```
 
 
 ### 🌀 Typical Workflow
 
+#### 0. Create Session (New)
+```bash
+curl -X POST "http://localhost:8000/subscribe" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_data": {
+      "username": "corporate_user",
+      "department": "IT"
+    }
+  }'
+```
+
 #### 1. Authentication
 ```bash
-curl -X POST "http://localhost:5003/login" \
+curl -X POST "http://localhost:8000/login" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://sistema.empresa.com/login",
@@ -239,7 +298,7 @@ curl -X POST "http://localhost:5003/login" \
 
 #### 2. Make Authenticated Requests
 ```bash
-curl -X POST "http://localhost:5003/forward" \
+curl -X POST "http://localhost:8000/forward" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://sistema.empresa.com/api/datos",
@@ -249,7 +308,7 @@ curl -X POST "http://localhost:5003/forward" \
 
 #### 3. Download Files (NEW)
 ```bash
-curl -X POST "http://localhost:5003/dowwnload" \
+curl -X POST "http://localhost:8000/dowwnload" \
   -H "Content-Type: application/json" \
   -d '{
     "url": "https://files.company.com/download/file.zip",
@@ -259,7 +318,7 @@ curl -X POST "http://localhost:5003/dowwnload" \
 
 #### 0. Set Custom Headers (optional)
 ```bash
-curl -X POST "http://localhost:5003/set-headers" \
+curl -X POST "http://localhost:8000/set-headers" \
   -H "Content-Type: application/json" \
   -d '{
     "X-Custom-Header": "CustomValue",
@@ -269,7 +328,7 @@ curl -X POST "http://localhost:5003/set-headers" \
 
 #### 4. Logout (Optional)
 ```bash
-curl -X POST "http://localhost:5003/logout"
+curl -X POST "http://localhost:8000/logout"
 ```
 
 ## 🚨 Troubleshooting
@@ -341,6 +400,6 @@ pip install -r requirements.txt
 
 ---
 
-**Version**: 2.0.0  
-**Date**: January 15, 2026  
+**Version**: 3.0.0  
+**Date**: January 20, 2026  
 **Compatible with**: Windows 10/11, Server 2016+

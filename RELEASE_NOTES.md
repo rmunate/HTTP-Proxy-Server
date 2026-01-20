@@ -1,7 +1,7 @@
 # 🚀 HTTP Proxy Server - Release Notes
 
-## Version 2.0.0 - Windows Executable
-**Release Date:** January 15, 2026
+## Version 3.0.0 - Enhanced Session Management
+**Release Date:** January 20, 2026
 
 ---
 
@@ -12,7 +12,11 @@ A **standalone Windows executable** that provides an HTTP proxy server with pers
 ### 🎯 Key Features
 
 - **🏢 Enterprise Ready**: Designed for corporate environments with proxy support
-- **🔐 Session Management**: Automatic cookie and authentication handling
+- **🔐 Advanced Session Management**: Subscribe/unsubscribe endpoints with automatic middleware
+- **📺 Flexible Configuration**: .env files and environment variables support
+- **🧙 Automatic Cleanup**: Expired session removal with configurable intervals
+- **🛡️ Centralized Error Handling**: Consistent error management across all endpoints
+- **📝 Session Management**: Automatic cookie and authentication handling
 - **📦 Zero Dependencies**: Single 11.4MB executable, no Python installation required
 - **🌐 REST API**: Complete FastAPI-based endpoints with Swagger documentation
 - **📊 Health Monitoring**: Built-in connectivity and service health checks
@@ -32,6 +36,8 @@ A **standalone Windows executable** that provides an HTTP proxy server with pers
 | Endpoint              | Method | Purpose                                         |
 |-----------------------|--------|------------------------------------------------|
 | `/health`             | GET    | Service and connectivity health check           |
+| `/subscribe`          | POST   | Create new personalized session                 |
+| `/unsubscribe/{id}`   | DELETE | Remove specific session from system            |
 | `/login`              | POST   | Authentication and session initialization       |
 | `/logout`             | POST   | Session termination and cleanup                 |
 | `/forward`            | POST   | HTTP request proxy with session persistence     |
@@ -44,8 +50,9 @@ A **standalone Windows executable** that provides an HTTP proxy server with pers
 
 ### 🔧 Configuration Options
 
-- **Environment Variables**: `SERVER_HOST`, `SERVER_PORT`, `LOG_LEVEL`
-- **Configuration File**: Optional `.env` file support
+- **.env File Support**: Automatic configuration loading from .env files
+- **Environment Variables**: `SERVER_HOST`, `SERVER_PORT`, `LOG_LEVEL`, `SESSION_TIMEOUT`, `CLEANUP_INTERVAL`
+- **Configuration Priority**: .env file > environment variables > defaults
 - **Flexible Deployment**: Can run on any port, any interface
 - **Production Ready**: Optimized for Windows Server environments
 
@@ -53,7 +60,7 @@ A **standalone Windows executable** that provides an HTTP proxy server with pers
 
 1. **Download** `HttpProxyServer.exe`
 2. **Run** the executable (no installation required)
-3. **Access** documentation at `http://localhost:5003/docs`
+3. **Access** documentation at `http://localhost:8000/docs`
 4. **Use** REST API for authentication and proxying
 
 ### 💼 Use Cases
@@ -65,27 +72,34 @@ A **standalone Windows executable** that provides an HTTP proxy server with pers
 - **Corporate Applications**: Navigate through corporate proxy requirements
 
 
-### 🆕 What's New in v2.0.0
+### 🆕 What's New in v3.0.0
 
-- Improved session management
-- Enhanced error handling
-- Better logging system
-- Modern FastAPI framework
-- Comprehensive input validation
-- Windows service compatibility
-- **New endpoint `/dowwnload`: Download files directly as binary streams, ideal for documents, images, and large files.**
+- **New Session Management**: Subscribe/unsubscribe endpoints for advanced session control
+- **Middleware Architecture**: Complete rewrite using centralized middleware approach
+- **Automatic Session Cleanup**: Configurable background cleanup of expired sessions
+- **Enhanced Configuration**: .env file support with priority-based configuration loading
+- **Centralized Error Handling**: Consistent error responses across all endpoints
+- **Improved Logging**: Enhanced logging with session tracking and performance metrics
+- **Better Session Validation**: Automatic session validation and authentication checks
+- **Default Port Change**: Now defaults to port 8000 (was 5003)
 
-**Example usage:**
+**New Subscribe Endpoint:**
 ```http
-POST http://localhost:5003/dowwnload
+POST http://localhost:8000/subscribe
 Content-Type: application/json
 
 {
-	"url": "https://files.company.com/download/file.zip",
-	"method": "GET"
+  "user_data": {
+    "username": "user123",
+    "department": "IT"
+  }
 }
 ```
-Returns the file as a direct download (streaming response).
+
+**New Unsubscribe Endpoint:**
+```http
+DELETE http://localhost:8000/unsubscribe/{session_id}
+```
 
 ### 📞 Support & Documentation
 
@@ -96,7 +110,10 @@ Returns the file as a direct download (streaming response).
 
 ### 🏷️ Technical Specifications
 
-- **Framework**: FastAPI 0.100+
+- **Framework**: FastAPI 0.100+ with advanced middleware
+- **Session Management**: In-memory with automatic cleanup
+- **Configuration**: .env files + environment variables + defaults
+- **Architecture**: Centralized middleware approach
 - **Platform**: Windows 10/11, Windows Server 2016+
 - **Size**: 11.4 MB (includes all dependencies)
 - **Memory**: ~50MB runtime footprint
