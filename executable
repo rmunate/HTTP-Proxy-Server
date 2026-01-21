@@ -1,0 +1,15 @@
+import sys
+from builder.executable_builder import ExecutableBuilder
+
+if __name__ == "__main__":
+
+    # Build the executable using ExecutableBuilder.
+    builder: ExecutableBuilder = ExecutableBuilder()
+    success: bool = builder.build()
+
+    # Exit with status code 1 if build fails.
+    if not success:
+        sys.exit(1)
+
+    # Exit with status code 0 if build succeeds.
+    sys.exit(0)
