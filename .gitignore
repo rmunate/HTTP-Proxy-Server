@@ -57,3 +57,6 @@ run_server.bat
 *.mo
 *.swp
 *.swo
+
+# Logs
+logs
