@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
         # Load server configuration from environment variables
         host = Env.get("SERVER_HOST", "0.0.0.0")
-        port = int(Env.get("SERVER_PORT", 8000))
+        port = int(Env.get("SERVER_PORT", 5003))
         log_level = Env.get("LOG_LEVEL", "info").lower()
         access_log = Env.get("ACCESS_LOG", "true").lower() == "true"
         workers = int(Env.get("WORKERS", 1))
@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
         # Start the Uvicorn server with the specified configuration
         Log.info("Starting HTTP Proxy Server...")
-        Log.info(f"API documentation available at: http://{host}:{port}/docs")
+        Log.info(f"API documentation available at: http://localhost:{port}/docs")
 
         # Server configuration dictionary
         uvicorn.run(
